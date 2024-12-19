@@ -7,14 +7,18 @@ import {
   Button,
   Image,
   TouchableOpacity,
+  Alert,
 } from "react-native";
-import { Colors } from "../../constants/Colors";
 import axios from "axios"; // Import Axios để gọi API
+import { Colors } from "../../constants/Colors"; // Thêm Colors nếu cần
+import { useRouter } from "expo-router";
+import ProductItem from "./ProductItem";
 
 export default function AllProduct() {
   const [products, setProducts] = useState([]); // State để lưu danh sách sản phẩm
   const [loading, setLoading] = useState(true); // State để theo dõi trạng thái tải
   const [showAll, setShowAll] = useState(false); // State để theo dõi việc hiển thị tất cả sản phẩm hay chỉ 6 sản phẩm
+  const router = useRouter();
 
   // useEffect để gọi API khi component được render
   useEffect(() => {
@@ -42,6 +46,14 @@ export default function AllProduct() {
   // Hàm để hiển thị tất cả sản phẩm hoặc chỉ 6 sản phẩm đầu tiên
   const displayedProducts = showAll ? products : products.slice(0, 6);
 
+  // const onProductPress = (cate) => {
+  //   try {
+  //     router.push("/pdt/" + cate); // Điều hướng đến trang chi tiết sản phẩm với ID
+  //   } catch (error) {
+  //     console.error("Error navigating to route: ", error);
+  //   }
+  // };
+
   return (
     <View style={styles.container}>
       <View style={styles.conC}>
@@ -53,15 +65,15 @@ export default function AllProduct() {
       <FlatList
         data={displayedProducts} // Dữ liệu sản phẩm theo số lượng hiển thị
         numColumns={2} // Hiển thị theo 2 cột
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View style={styles.productItem}>
             <Image style={styles.productImage} source={{ uri: item.Anh }} />
             <Text style={styles.productText}>{item.TenSP}</Text>
-            <Button
-              title="Xem chi tiết"
-              onPress={() => {
-                alert(`Xem chi tiết sản phẩm: ${item.TenSP}`);
-              }}
+            {/* <Button title="Xem chi tiết" onPress={() => onProductPress(item)} /> */}
+            <ProductItem
+              product={item}
+              key={index}
+              onProductPress={(product) => router.push("/pdt/" + item.MaSP)}
             />
           </View>
         )}

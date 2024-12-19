@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     marginHorizontal: 5,
     borderRadius: 10,
-    width: 280,
+    width: 300,
   },
   textS: {
     fontFamily: "outfit",
@@ -67,9 +67,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     backgroundColor: Colors.PRIMARY,
-    padding: 5,
     borderRadius: 99,
     marginTop: -5,
-    marginLeft: -15,
   },
 });

@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Android",
+      "program": "${workspaceFolder}/node_modules/expo/AppEntry.js",
+      "request": "launch",
+      "type": "reactnative",
+      "platform": "android"
+    },
+    {
+      "name": "Debug iOS",
+      "program": "${workspaceFolder}/node_modules/expo/AppEntry.js",
+      "request": "launch",
+      "type": "reactnative",
+      "platform": "ios"
+    },
+    {
+      "name": "Attach to packager",
+      "type": "reactnative",
+      "request": "attach",
+      "port": 19000
+    }
+  ]
+}
