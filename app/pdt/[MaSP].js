@@ -9,17 +9,21 @@ import {
   SafeAreaView,
   TouchableOpacity,
   StatusBar,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import axios from "axios";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Dimensions } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 
 const screenWidth = Dimensions.get("window").width;
 
 export default function ProductDetailById() {
   const navigation = useNavigation();
   const { MaSP } = useLocalSearchParams();
+  const router = useRouter();
 
   // State để lưu trữ dữ liệu sản phẩm và trạng thái tải
   const [product, setProduct] = useState(null);
@@ -45,7 +49,16 @@ export default function ProductDetailById() {
       headerRight: () => (
         <View style={styles.headerRight}>
           <View style={styles.headerIcon}>
-            <Ionicons name="cart-outline" size={24} color="black" />
+            <Ionicons
+              name="cart-outline"
+              size={24}
+              color="black"
+              onPress={() =>
+                checkLogin(() =>
+                  Alert.alert("Giỏ hàng", "Chuyển tới giỏ hàng!")
+                )
+              }
+            />
           </View>
           <View style={styles.headerIcon}>
             <Ionicons name="share-social-outline" size={24} color="black" />
@@ -69,6 +82,29 @@ export default function ProductDetailById() {
         });
     }
   }, [MaSP, navigation]);
+
+  const checkLogin = async (callback) => {
+    try {
+      const userInfo = await AsyncStorage.getItem("userInfo");
+      if (userInfo !== null) {
+        callback();
+      } else {
+        Alert.alert(
+          "Yêu cầu đăng nhập",
+          "Bạn cần đăng nhập để thực hiện chức năng này.",
+          [
+            { text: "Hủy", style: "cancel" },
+            {
+              text: "Đăng nhập",
+              onPress: () => router.push("/login"), // Sử dụng router.push để điều hướng
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("Error checking login status: ", error);
+    }
+  };
 
   if (loading) {
     return (
@@ -124,7 +160,12 @@ export default function ProductDetailById() {
 
       {/* Pay Tabs */}
       <View style={styles.payTabs}>
-        <TouchableOpacity style={styles.chatButton}>
+        <TouchableOpacity
+          style={styles.chatButton}
+          onPress={() =>
+            checkLogin(() => Alert.alert("Chat", "Chức năng chat!"))
+          }
+        >
           <Ionicons
             name="chatbubble-ellipses-outline"
             size={24}
@@ -132,11 +173,21 @@ export default function ProductDetailById() {
           />
           <Text style={styles.tabText}>Chat ngay</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cartButton}>
+        <TouchableOpacity
+          style={styles.cartButton}
+          onPress={() =>
+            checkLogin(() => Alert.alert("Giỏ hàng", "Thêm vào giỏ hàng!"))
+          }
+        >
           <Ionicons name="cart-outline" size={24} color="#e62e00" />
           <Text style={styles.tabText}>Thêm giỏ hàng</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.buyButton}>
+        <TouchableOpacity
+          style={styles.buyButton}
+          onPress={() =>
+            checkLogin(() => Alert.alert("Mua ngay", "Chức năng mua ngay!"))
+          }
+        >
           <Ionicons name="bag-handle-outline" size={24} color="white" />
           <Text style={styles.buyButtonText}>Mua ngay</Text>
         </TouchableOpacity>

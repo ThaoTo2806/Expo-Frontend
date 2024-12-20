@@ -17,6 +17,8 @@
   "dependencies": {
     "@clerk/nextjs": "^6.9.3",
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-async-storage/async-storage": "^2.1.0",
+    "@react-native-community/checkbox": "^0.5.17",
     "@react-native-community/cli": "latest",
     "@react-native-community/masked-view": "^0.1.11",
     "@react-navigation/bottom-tabs": "^7.0.0",

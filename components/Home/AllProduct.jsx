@@ -46,14 +46,6 @@ export default function AllProduct() {
   // Hàm để hiển thị tất cả sản phẩm hoặc chỉ 6 sản phẩm đầu tiên
   const displayedProducts = showAll ? products : products.slice(0, 6);
 
-  // const onProductPress = (cate) => {
-  //   try {
-  //     router.push("/pdt/" + cate); // Điều hướng đến trang chi tiết sản phẩm với ID
-  //   } catch (error) {
-  //     console.error("Error navigating to route: ", error);
-  //   }
-  // };
-
   return (
     <View style={styles.container}>
       <View style={styles.conC}>

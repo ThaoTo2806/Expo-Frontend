@@ -10,6 +10,11 @@ export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="login" options={{ title: "Đăng Nhập" }} />
+      <Stack.Screen
+        name="pdt/[MaSP]"
+        options={{ title: "Chi Tiết Sản Phẩm" }}
+      />
     </Stack>
   );
 }
