@@ -36,8 +36,14 @@ export default function LoginScreen() {
       const data = response.data;
       //console.log("Response data:", data);
       if (data.success) {
-        // Lưu thông tin vào AsyncStorage
-        await AsyncStorage.setItem("userInfo", JSON.stringify(data.data));
+        // Lưu token và thông tin người dùng vào AsyncStorage
+        const userInfo = {
+          token: data.token, // token từ API
+          user: data.data, // thông tin người dùng
+        };
+
+        await AsyncStorage.setItem("userInfo", JSON.stringify(userInfo));
+
         Alert.alert("Success", "Login successful!", [
           {
             text: "OK",
