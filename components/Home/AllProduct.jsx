@@ -9,41 +9,53 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import axios from "axios"; // Import Axios để gọi API
-import { Colors } from "../../constants/Colors"; // Thêm Colors nếu cần
+import axios from "axios";
+import { Colors } from "../../constants/Colors";
 import { useRouter } from "expo-router";
 import ProductItem from "./ProductItem";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage
 
 export default function AllProduct() {
-  const [products, setProducts] = useState([]); // State để lưu danh sách sản phẩm
-  const [loading, setLoading] = useState(true); // State để theo dõi trạng thái tải
-  const [showAll, setShowAll] = useState(false); // State để theo dõi việc hiển thị tất cả sản phẩm hay chỉ 6 sản phẩm
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const router = useRouter();
 
-  // useEffect để gọi API khi component được render
   useEffect(() => {
-    // Gọi API lấy dữ liệu sản phẩm
+    // Fetch product data when the component mounts
     axios
       .get("http://192.168.1.8:5000/api/sanpham")
       .then((response) => {
-        setProducts(response.data.data); // Lưu dữ liệu sản phẩm vào state
-        setLoading(false); // Đánh dấu đã tải xong
+        setProducts(response.data.data);
+        setLoading(false);
       })
       .catch((error) => {
-        console.error("Lỗi khi lấy dữ liệu sản phẩm: ", error);
-        setLoading(false); // Kết thúc quá trình tải
+        console.error("Error fetching product data: ", error);
+        setLoading(false);
       });
-  }, []); // Chạy một lần khi component mount
+  }, []);
+
+  const handleProductPress = async (item) => {
+    const userInfo = await AsyncStorage.getItem("userInfo");
+
+    if (!userInfo) {
+      Alert.alert("Login Required", "Please log in to view product details.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Login", onPress: () => router.push("/login") },
+      ]);
+    } else {
+      router.push(`/pdt/${item.MaSP}`);
+    }
+  };
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text>Đang tải...</Text>
+        <Text>Loading...</Text>
       </View>
     );
   }
 
-  // Hàm để hiển thị tất cả sản phẩm hoặc chỉ 6 sản phẩm đầu tiên
   const displayedProducts = showAll ? products : products.slice(0, 6);
 
   return (
@@ -55,17 +67,16 @@ export default function AllProduct() {
         </TouchableOpacity>
       </View>
       <FlatList
-        data={displayedProducts} // Dữ liệu sản phẩm theo số lượng hiển thị
-        numColumns={2} // Hiển thị theo 2 cột
+        data={displayedProducts}
+        numColumns={2}
         renderItem={({ item, index }) => (
           <View style={styles.productItem}>
             <Image style={styles.productImage} source={{ uri: item.Anh }} />
             <Text style={styles.productText}>{item.TenSP}</Text>
-            {/* <Button title="Xem chi tiết" onPress={() => onProductPress(item)} /> */}
             <ProductItem
               product={item}
               key={index}
-              onProductPress={(product) => router.push("/pdt/" + item.MaSP)}
+              onProductPress={() => handleProductPress(item)} // Pass the product item to the function
             />
           </View>
         )}
@@ -91,7 +102,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 5,
     borderColor: "#ddd",
-    alignItems: "center", // Canh giữa các phần tử trong item
+    alignItems: "center",
   },
   productImage: {
     width: 100,

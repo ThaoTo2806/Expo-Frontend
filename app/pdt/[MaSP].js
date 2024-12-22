@@ -15,8 +15,8 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import axios from "axios";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Dimensions } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -25,49 +25,59 @@ export default function ProductDetailById() {
   const { MaSP } = useLocalSearchParams();
   const router = useRouter();
 
-  // State để lưu trữ dữ liệu sản phẩm và trạng thái tải
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [token, setToken] = useState(null); // state for total amount in the cart
 
   useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem("userInfo");
+        const parsedToken = JSON.parse(storedToken); // Chuyển chuỗi JSON thành đối tượng
+        console.log("parsedToken: ", parsedToken.token); // In ra đối tượng đã chuyển
+        if (parsedToken) {
+          setToken(parsedToken.token); // Lưu trữ token vào state
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy token: ", error);
+      }
+    };
+
+    fetchToken();
+
     navigation.setOptions({
       headerShown: true,
-      headerTitle: "",
-      headerTransparent: true, // Làm trong suốt thanh điều hướng
-      headerStyle: styles.headerStyle,
+      headerTransparent: true,
       headerLeft: () => (
-        <View style={styles.headerLeft}>
-          <Ionicons
-            name="arrow-back-outline" // Biểu tượng mũi tên quay lại
-            size={24}
-            color="black"
-            onPress={() => navigation.goBack()} // Xử lý sự kiện quay lại
-          />
-        </View>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={navigation.goBack}
+        >
+          <Ionicons name="arrow-back-outline" size={24} color="black" />
+        </TouchableOpacity>
       ),
       headerRight: () => (
-        <View style={styles.headerRight}>
-          <View style={styles.headerIcon}>
-            <Ionicons
-              name="cart-outline"
-              size={24}
-              color="black"
-              onPress={() =>
-                checkLogin(() =>
-                  Alert.alert("Giỏ hàng", "Chuyển tới giỏ hàng!")
-                )
-              }
-            />
-          </View>
-          <View style={styles.headerIcon}>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => Alert.alert("Giỏ hàng", "Chuyển tới giỏ hàng!")}
+          >
+            <Ionicons name="cart-outline" size={24} color="black" />
+            {/* Display the totalAmount as a small badge */}
+            {totalAmount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{totalAmount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity>
             <Ionicons name="share-social-outline" size={24} color="black" />
-          </View>
+          </TouchableOpacity>
         </View>
       ),
     });
 
-    // Gọi API với MaSP
     if (MaSP) {
       axios
         .get(`http://192.168.1.8:5000/api/sanpham/${MaSP}`)
@@ -75,273 +85,198 @@ export default function ProductDetailById() {
           setProduct(response.data.data);
           setLoading(false);
         })
-        .catch((error) => {
-          console.error("Error fetching product data: ", error);
+        .catch(() => {
           setError("Không thể tải dữ liệu sản phẩm.");
           setLoading(false);
         });
     }
-  }, [MaSP, navigation]);
 
-  const checkLogin = async (callback) => {
+    // Fetch the totalAmount from the cart when the component is loaded
+    if (token) {
+      axios
+        .get("http://192.168.1.8:5000/api/giohang", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((response) => {
+          // Calculate totalAmount from the response
+          const total = response.data.cart.reduce(
+            (sum, item) => sum + item.GiaBan * item.SoLuong,
+            0
+          );
+          setTotalAmount(total);
+        })
+        .catch(() => {
+          console.log("Không thể lấy thông tin giỏ hàng.");
+        });
+    }
+  }, [MaSP, navigation, token]);
+
+  const addToCart = async () => {
     try {
-      const userInfo = await AsyncStorage.getItem("userInfo");
-      if (userInfo !== null) {
-        callback();
-      } else {
-        Alert.alert(
-          "Yêu cầu đăng nhập",
-          "Bạn cần đăng nhập để thực hiện chức năng này.",
-          [
-            { text: "Hủy", style: "cancel" },
-            {
-              text: "Đăng nhập",
-              onPress: () => router.push("/login"), // Sử dụng router.push để điều hướng
-            },
-          ]
-        );
+      if (!token) {
+        throw new Error("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.");
       }
+
+      const response = await axios.post(
+        "http://192.168.1.8:5000/api/giohang",
+        {
+          MaSP: product.MaSP,
+          TenSP: product.TenSP,
+          GiaBan: product.GiaBan,
+          Anh: product.Anh,
+          SoLuong: 1,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      Alert.alert(
+        "Thành công",
+        response.status === 200
+          ? "Sản phẩm đã được thêm vào giỏ hàng!"
+          : "Không thể thêm sản phẩm vào giỏ hàng."
+      );
     } catch (error) {
-      console.error("Error checking login status: ", error);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi khi thêm sản phẩm vào giỏ hàng.");
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Đang tải dữ liệu sản phẩm...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
+  if (loading) return <Loading />;
+  if (error) return <ErrorMessage error={error} />;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
-        translucent={true} // Kích hoạt chế độ trong suốt
-        backgroundColor="transparent" // Đặt màu nền trong suốt
-        barStyle="light-content" // Màu nội dung (trắng sáng)
-        hidden={false} // Hiển thị thanh trạng thái
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
       />
       <ScrollView>
         <Image style={styles.productImage} source={{ uri: product.Anh }} />
-
-        {/* Giá bán và số lượng tồn */}
         <View style={styles.priceContainer}>
           <Text style={styles.productPrice}>{product.GiaBan} đ</Text>
           <Text style={styles.productStock}>Còn: {product.SLTon}</Text>
         </View>
-
-        {/* Thông tin sản phẩm */}
-        <View style={styles.flashSaleContainer}>
-          <View style={styles.flashSaleLabel}>
-            <Text style={styles.flashSaleText}>FRIDAY</Text>
-          </View>
-          <View style={styles.flashSaleLabel1}>
-            <Text style={styles.flashSaleText}>Star Shop</Text>
-          </View>
+        <View style={styles.infoContainer}>
           <Text style={styles.productName}>{product.TenSP}</Text>
-        </View>
-        <Text style={styles.productName1}>Giới thiệu về sản phẩm này</Text>
-        <View style={styles.descriptionContainer}>
-          <ScrollView>
-            <Text style={styles.productDescription}>{product.MoTa}</Text>
-          </ScrollView>
+          <Text style={styles.sectionTitle}>Giới thiệu về sản phẩm này</Text>
+          <Text style={styles.productDescription}>{product.MoTa}</Text>
         </View>
       </ScrollView>
-
-      {/* Pay Tabs */}
-      <View style={styles.payTabs}>
-        <TouchableOpacity
-          style={styles.chatButton}
-          onPress={() =>
-            checkLogin(() => Alert.alert("Chat", "Chức năng chat!"))
-          }
-        >
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={24}
-            color="#e62e00"
-          />
-          <Text style={styles.tabText}>Chat ngay</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() =>
-            checkLogin(() => Alert.alert("Giỏ hàng", "Thêm vào giỏ hàng!"))
-          }
-        >
-          <Ionicons name="cart-outline" size={24} color="#e62e00" />
-          <Text style={styles.tabText}>Thêm giỏ hàng</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.buyButton}
-          onPress={() =>
-            checkLogin(() => Alert.alert("Mua ngay", "Chức năng mua ngay!"))
-          }
-        >
-          <Ionicons name="bag-handle-outline" size={24} color="white" />
-          <Text style={styles.buyButtonText}>Mua ngay</Text>
-        </TouchableOpacity>
-      </View>
+      <ActionTabs
+        onChat={() => Alert.alert("Chat", "Chat ngay")}
+        onAddToCart={addToCart}
+      />
     </SafeAreaView>
   );
 }
 
+const Loading = () => (
+  <View style={styles.centeredContainer}>
+    <ActivityIndicator size="large" color="#0000ff" />
+    <Text>Đang tải dữ liệu sản phẩm...</Text>
+  </View>
+);
+
+const ErrorMessage = ({ error }) => (
+  <View style={styles.centeredContainer}>
+    <Text style={styles.errorText}>{error}</Text>
+  </View>
+);
+
+const ActionTabs = ({ token, onChat, onAddToCart }) => (
+  <View style={styles.actionTabs}>
+    <ActionButton
+      text="Chat ngay"
+      icon="chatbubble-ellipses-outline"
+      onPress={onChat}
+      color="#e62e00"
+    />
+    <ActionButton
+      text="Thêm giỏ hàng"
+      icon="cart-outline"
+      onPress={onAddToCart}
+      color="#e62e00"
+    />
+    <ActionButton
+      text="Mua ngay"
+      icon="bag-handle-outline"
+      onPress={() => Alert.alert("Mua ngay", `Token hiện tại: ${token}`)}
+      backgroundColor="#e62e00"
+      textColor="white"
+    />
+  </View>
+);
+
+const ActionButton = ({
+  text,
+  icon,
+  onPress,
+  color,
+  backgroundColor = "white",
+  textColor = "black",
+}) => (
+  <TouchableOpacity
+    style={[styles.actionButton, { backgroundColor }]}
+    onPress={onPress}
+  >
+    <Ionicons name={icon} size={24} color={color} />
+    <Text style={[styles.actionButtonText, { color: textColor }]}>{text}</Text>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
-  safeArea: {
+  safeArea: { flex: 1, backgroundColor: "transparent" },
+  centeredContainer: {
     flex: 1,
-    backgroundColor: "transparent",
-  },
-  container: {
-    flex: 1,
-    padding: 20,
     justifyContent: "center",
     alignItems: "center",
   },
-  productImage: {
-    width: screenWidth,
-    height: 400,
-    resizeMode: "cover",
-  },
+  productImage: { width: screenWidth, height: 400, resizeMode: "cover" },
   priceContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginHorizontal: 10,
-    marginVertical: 10,
+    margin: 10,
   },
-  productPrice: {
-    fontSize: 20,
-    color: "black",
-    fontFamily: "outfit-Bold",
-  },
-  productStock: {
-    fontSize: 15,
-    color: "#e62e00",
-    fontFamily: "outfit",
-  },
-  flashSaleContainer: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    marginHorizontal: 10,
-    marginTop: -10,
-  },
-  flashSaleLabel: {
-    backgroundColor: "#ffff00",
-    padding: 5,
-    width: 70,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  flashSaleLabel1: {
-    backgroundColor: "#ffe6cc",
-    padding: 5,
-    width: 70,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  flashSaleText: {
-    fontSize: 12,
-    fontFamily: "outfit-Bold",
-    textAlign: "center",
-  },
+  productPrice: { fontSize: 20, color: "black", fontWeight: "bold" },
+  productStock: { fontSize: 15, color: "#e62e00" },
+  infoContainer: { padding: 10 },
   productName: {
     fontSize: 18,
     color: "black",
-    marginHorizontal: 20,
     marginBottom: 10,
+    fontWeight: "bold",
   },
-  productName1: {
-    fontSize: 18,
-    color: "black",
-    marginTop: 5,
-    marginHorizontal: 10,
-    marginBottom: 5,
-    fontFamily: "outfit-Bold",
-  },
-  productDescription: {
-    fontSize: 15,
-    color: "black",
-    textAlign: "justify",
-    padding: 5,
-  },
-  payTabs: {
+  sectionTitle: { fontSize: 18, color: "black", marginBottom: 5 },
+  productDescription: { fontSize: 15, color: "black", textAlign: "justify" },
+  headerButton: { padding: 10 },
+  headerActions: { flexDirection: "row", gap: 15, marginRight: 10 },
+  actionTabs: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    padding: 10,
     backgroundColor: "#fff",
   },
-  chatButton: {
+  actionButton: {
     flex: 1,
-    backgroundColor: "white",
     alignItems: "center",
-    paddingVertical: 10,
-    marginRight: 5,
+    padding: 10,
+    marginHorizontal: 5,
     borderRadius: 5,
   },
-  cartButton: {
-    flex: 1,
-    backgroundColor: "white",
-    alignItems: "center",
-    paddingVertical: 10,
-    marginRight: 5,
-    borderRadius: 5,
-  },
-  buyButton: {
-    flex: 2,
+  actionButtonText: { fontSize: 13 },
+  errorText: { fontSize: 16, color: "red", textAlign: "center" },
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
     backgroundColor: "#e62e00",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderRadius: 5,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  tabText: {
-    fontSize: 13,
-    color: "black",
-  },
-  buyButtonText: {
-    fontSize: 13,
+  cartBadgeText: {
     color: "white",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "red",
-    textAlign: "center",
-  },
-  descriptionContainer: {
-    borderWidth: 1,
-    borderColor: "gray",
-    borderRadius: 20,
-    padding: 10,
-    marginTop: 10,
-    height: 120,
-    marginHorizontal: 15,
-  },
-  headerStyle: {
-    backgroundColor: "transparent",
-  },
-  headerLeft: {
-    backgroundColor: "#f2f2f2",
-    borderRadius: 99,
-    padding: 10,
-    opacity: 0.7,
-  },
-  headerRight: {
-    flexDirection: "row",
-    gap: 15,
-    marginRight: 5,
-  },
-  headerIcon: {
-    backgroundColor: "#f2f2f2",
-    borderRadius: 99,
-    padding: 10,
-    opacity: 0.7,
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });

@@ -38,7 +38,7 @@ export default function LoginScreen() {
       if (data.success) {
         // Lưu token và thông tin người dùng vào AsyncStorage
         const userInfo = {
-          token: data.token, // token từ API
+          token: data.accessToken, // token từ API
           user: data.data, // thông tin người dùng
         };
 
