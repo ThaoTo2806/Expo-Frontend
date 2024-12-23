@@ -15,7 +15,6 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import axios from "axios";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Dimensions } from "react-native";
-import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const screenWidth = Dimensions.get("window").width;
@@ -23,30 +22,33 @@ const screenWidth = Dimensions.get("window").width;
 export default function ProductDetailById() {
   const navigation = useNavigation();
   const { MaSP } = useLocalSearchParams();
-  const router = useRouter();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [token, setToken] = useState(null); // state for total amount in the cart
+  const [cartItems, setCartItems] = useState([]);
+  const [distinctProductCount, setDistinctProductCount] = useState(0);
+  const [token, setToken] = useState(null);
 
+  // Fetch token from local storage
   useEffect(() => {
     const fetchToken = async () => {
       try {
         const storedToken = await AsyncStorage.getItem("userInfo");
-        const parsedToken = JSON.parse(storedToken); // Chuyển chuỗi JSON thành đối tượng
-        console.log("parsedToken: ", parsedToken.token); // In ra đối tượng đã chuyển
-        if (parsedToken) {
-          setToken(parsedToken.token); // Lưu trữ token vào state
+        const parsedToken = JSON.parse(storedToken);
+        if (parsedToken?.token) {
+          setToken(parsedToken.token);
         }
       } catch (error) {
-        console.error("Lỗi khi lấy token: ", error);
+        console.error("Error fetching token:", error);
       }
     };
 
     fetchToken();
+  }, []);
 
+  // Set navigation options
+  useEffect(() => {
     navigation.setOptions({
       headerShown: true,
       headerTransparent: true,
@@ -64,20 +66,20 @@ export default function ProductDetailById() {
             onPress={() => Alert.alert("Giỏ hàng", "Chuyển tới giỏ hàng!")}
           >
             <Ionicons name="cart-outline" size={24} color="black" />
-            {/* Display the totalAmount as a small badge */}
-            {totalAmount > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{totalAmount}</Text>
-              </View>
-            )}
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{distinctProductCount}</Text>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity style={{ marginLeft: 15 }}>
             <Ionicons name="share-social-outline" size={24} color="black" />
           </TouchableOpacity>
         </View>
       ),
     });
+  }, [distinctProductCount]);
 
+  // Fetch product details
+  useEffect(() => {
     if (MaSP) {
       axios
         .get(`http://192.168.1.8:5000/api/sanpham/${MaSP}`)
@@ -90,27 +92,29 @@ export default function ProductDetailById() {
           setLoading(false);
         });
     }
+  }, [MaSP]);
 
-    // Fetch the totalAmount from the cart when the component is loaded
-    if (token) {
-      axios
-        .get("http://192.168.1.8:5000/api/giohang", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((response) => {
-          // Calculate totalAmount from the response
-          const total = response.data.cart.reduce(
-            (sum, item) => sum + item.GiaBan * item.SoLuong,
-            0
-          );
-          setTotalAmount(total);
-        })
-        .catch(() => {
-          console.log("Không thể lấy thông tin giỏ hàng.");
-        });
+  // Fetch cart details
+  const fetchCartData = async () => {
+    try {
+      if (!token) return;
+      const response = await axios.get("http://192.168.1.8:5000/api/giohang", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data.success) {
+        setCartItems(response.data.cart);
+        setDistinctProductCount(response.data.distinctProductCount);
+      }
+    } catch (error) {
+      console.error("Error fetching cart:", error);
     }
-  }, [MaSP, navigation, token]);
+  };
 
+  useEffect(() => {
+    fetchCartData();
+  }, [token]);
+
+  // Add to cart handler
   const addToCart = async () => {
     try {
       if (!token) {
@@ -135,6 +139,9 @@ export default function ProductDetailById() {
           ? "Sản phẩm đã được thêm vào giỏ hàng!"
           : "Không thể thêm sản phẩm vào giỏ hàng."
       );
+
+      // Gọi lại API để cập nhật số lượng sản phẩm trong giỏ hàng
+      await fetchCartData();
     } catch (error) {
       Alert.alert("Lỗi", "Đã xảy ra lỗi khi thêm sản phẩm vào giỏ hàng.");
     }
@@ -162,10 +169,7 @@ export default function ProductDetailById() {
           <Text style={styles.productDescription}>{product.MoTa}</Text>
         </View>
       </ScrollView>
-      <ActionTabs
-        onChat={() => Alert.alert("Chat", "Chat ngay")}
-        onAddToCart={addToCart}
-      />
+      <ActionTabs onAddToCart={addToCart} />
     </SafeAreaView>
   );
 }
@@ -183,44 +187,21 @@ const ErrorMessage = ({ error }) => (
   </View>
 );
 
-const ActionTabs = ({ token, onChat, onAddToCart }) => (
+const ActionTabs = ({ onAddToCart }) => (
   <View style={styles.actionTabs}>
-    <ActionButton
-      text="Chat ngay"
-      icon="chatbubble-ellipses-outline"
-      onPress={onChat}
-      color="#e62e00"
-    />
     <ActionButton
       text="Thêm giỏ hàng"
       icon="cart-outline"
       onPress={onAddToCart}
-      color="#e62e00"
-    />
-    <ActionButton
-      text="Mua ngay"
-      icon="bag-handle-outline"
-      onPress={() => Alert.alert("Mua ngay", `Token hiện tại: ${token}`)}
-      backgroundColor="#e62e00"
-      textColor="white"
+      color="white"
     />
   </View>
 );
 
-const ActionButton = ({
-  text,
-  icon,
-  onPress,
-  color,
-  backgroundColor = "white",
-  textColor = "black",
-}) => (
-  <TouchableOpacity
-    style={[styles.actionButton, { backgroundColor }]}
-    onPress={onPress}
-  >
+const ActionButton = ({ text, icon, onPress, color }) => (
+  <TouchableOpacity style={styles.actionButton} onPress={onPress}>
     <Ionicons name={icon} size={24} color={color} />
-    <Text style={[styles.actionButtonText, { color: textColor }]}>{text}</Text>
+    <Text style={styles.actionButtonText}>{text}</Text>
   </TouchableOpacity>
 );
 
@@ -249,34 +230,26 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, color: "black", marginBottom: 5 },
   productDescription: { fontSize: 15, color: "black", textAlign: "justify" },
   headerButton: { padding: 10 },
-  headerActions: { flexDirection: "row", gap: 15, marginRight: 10 },
-  actionTabs: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 10,
-    backgroundColor: "#fff",
+  headerActions: { flexDirection: "row", marginRight: 10 },
+  cartBadge: {
+    position: "absolute",
+    backgroundColor: "#e62e00",
+    borderRadius: 99,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    top: -8,
+    right: -8,
   },
+  cartBadgeText: { fontSize: 10, color: "white" },
+  actionTabs: { flexDirection: "row", padding: 10 },
   actionButton: {
     flex: 1,
     alignItems: "center",
     padding: 10,
     marginHorizontal: 5,
     borderRadius: 5,
-  },
-  actionButtonText: { fontSize: 13 },
-  errorText: { fontSize: 16, color: "red", textAlign: "center" },
-  cartBadge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
     backgroundColor: "#e62e00",
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
   },
-  cartBadgeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
+  actionButtonText: { fontSize: 14, color: "white" },
+  errorText: { fontSize: 16, color: "red", textAlign: "center" },
 });
