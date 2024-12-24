@@ -15,6 +15,7 @@ export default function RootLayout() {
         name="pdt/[MaSP]"
         options={{ title: "Chi Tiết Sản Phẩm" }}
       />
+      <Stack.Screen name="cart" option={{ title: "Giỏ hàng" }} />
     </Stack>
   );
 }

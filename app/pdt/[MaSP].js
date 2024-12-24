@@ -16,12 +16,14 @@ import axios from "axios";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 
 const screenWidth = Dimensions.get("window").width;
 
 export default function ProductDetailById() {
   const navigation = useNavigation();
   const { MaSP } = useLocalSearchParams();
+  const router = useRouter();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,9 +64,7 @@ export default function ProductDetailById() {
       ),
       headerRight: () => (
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => Alert.alert("Giỏ hàng", "Chuyển tới giỏ hàng!")}
-          >
+          <TouchableOpacity onPress={() => router.push("/cart")}>
             <Ionicons name="cart-outline" size={24} color="black" />
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{distinctProductCount}</Text>
