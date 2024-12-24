@@ -15,6 +15,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Colors } from "../../frontend/constants/Colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import CheckBox from "react-native-check-box";
 
 export default function Cart() {
   const navigation = useNavigation();
@@ -22,6 +23,7 @@ export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [distinctProductCount, setDistinctProductCount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [isChecked, setIsChecked] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -91,13 +93,27 @@ export default function Cart() {
     }
   };
 
+  const deleteProductFromCart = async (productId) => {
+    try {
+      const response = await axios.delete(
+        `http://192.168.1.8:5000/api/giohang/${productId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        fetchCartData();
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.cartItem}>
-      <Ionicons
-        name="radio-button-off"
-        size={24}
-        color="gray"
-        style={styles.radioButton}
+      <CheckBox
+        style={styles.checkbox}
+        isChecked={isChecked}
+        onClick={() => setIsChecked(!isChecked)}
+        checkBoxColor={Colors.PRIMARY} // Màu sắc checkbox
       />
       <Image source={{ uri: item.Anh }} style={styles.productImage} />
       <View style={styles.itemDetails}>
@@ -109,7 +125,7 @@ export default function Cart() {
           <TouchableOpacity
             style={styles.quantityButton}
             onPress={() =>
-              item.SoLuong > 1 && updateQuantity(item.MaSP, item.SoLuong - 1)
+              item.SoLuong > 0 && updateQuantity(item.MaSP, item.SoLuong - 1)
             }
           >
             <Ionicons name="remove" size={18} color="white" />
@@ -124,6 +140,14 @@ export default function Cart() {
             onPress={() => updateQuantity(item.MaSP, item.SoLuong + 1)}
           >
             <Ionicons name="add" size={18} color="white" />
+          </TouchableOpacity>
+
+          {/* Đẩy nút "cut" về bên phải */}
+          <TouchableOpacity
+            style={[styles.quantityButton, { marginLeft: "auto" }]}
+            onPress={() => deleteProductFromCart(item.MaSP)}
+          >
+            <Ionicons name="cut" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -167,12 +191,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f8f8",
     borderRadius: 8,
   },
-  radioButton: { marginRight: 10 },
+  checkbox: { marginRight: 10 },
   productImage: { width: 50, height: 50, borderRadius: 5, marginRight: 10 },
   itemDetails: { flex: 1 },
   productName: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
   productPrice: { fontSize: 14, color: "gray", marginBottom: 8 },
-  quantityContainer: { flexDirection: "row", alignItems: "center" },
+  quantityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+  },
   quantityButton: {
     backgroundColor: Colors.PRIMARY,
     padding: 5,
